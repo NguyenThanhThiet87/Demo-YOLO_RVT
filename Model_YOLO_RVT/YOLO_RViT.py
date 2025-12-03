@@ -4,7 +4,7 @@ import sys
 import os
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from utils import DEVICE
-
+import time
 from YoloBackbone import YoloBackbone
 from RViT import RViT
 
@@ -27,8 +27,14 @@ class YOLO_RViT(nn.Module):
 
     def forward(self, x, target=None, teach_ratio=0.5, forced_output_length=None):
         x = x.to(DEVICE)
+        t1 = time.perf_counter()
         feats = self.backbone(x)
-        return self.rvit(feats, target, teach_ratio, forced_output_length)
+        t2 = time.perf_counter()
+        print(f"Backbone time: {(t2 - t1)*1000:.2f} ms")
+        output = self.rvit(feats, target, teach_ratio, forced_output_length)
+        t3 = time.perf_counter()
+        print(f"RViT time: {(t3 - t2)*1000:.2f} ms")
+        return output
 
     def train(self, mode: bool = True):
         super().train(mode)

@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import random
 from torch.nn import MultiheadAttention
-
+import time
 from utils import  NUM_CLASSES, DEVICE, SOS_TOKEN, EOS_TOKEN, MAX_SEQ_LENGTH
 
 #--- Simplified RViT ---
@@ -35,7 +35,8 @@ class RViT(nn.Module):
             nn.Linear(2 * d_model, NUM_CLASSES)
         )
 
-    def forward(self, fmap, target=None, teach_ratio=0.5, forced_output_length=None):
+    def forward(self, fmap, target=None, teach_ratio=0.5, forced_output_length=10):
+        t1 = time.perf_counter()
         b = fmap.size(0)
         x = self.proj(fmap)
         x = x.flatten(2).permute(0, 2, 1)
@@ -72,7 +73,9 @@ class RViT(nn.Module):
         finished_sequences_tracker = None
         if target is None and forced_output_length is None:
             finished_sequences_tracker = torch.zeros(b, dtype=torch.bool, device=DEVICE)
-            
+        
+        t2 = time.perf_counter()
+        print(f"RViT preparation time: {(t2 - t1)*1000:.2f} ms")
         for t in range(max_gen_len):
             emb = self.embed(current_input_tokens).unsqueeze(1)
             g, h = self.gru(emb, h)
@@ -97,4 +100,7 @@ class RViT(nn.Module):
             else:
                 current_input_tokens = next_input_candidate
         
-        return torch.stack(outputs_logits, dim=1)
+        output = torch.stack(outputs_logits, dim=1)
+        t3 = time.perf_counter()
+        print(f"RViT generation time: {(t3 - t2)*1000:.2f} ms")
+        return output

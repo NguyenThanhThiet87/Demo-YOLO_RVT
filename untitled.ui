@@ -52,7 +52,6 @@
       </property>
       <layout class="QVBoxLayout" name="verticalLayout_2" stretch="0,9,1">
        <item>
-<<<<<<< HEAD
         <widget class="QFrame" name="frame_3">
          <property name="frameShape">
           <enum>QFrame::StyledPanel</enum>
@@ -106,24 +105,6 @@
            </widget>
           </item>
          </layout>
-=======
-        <widget class="QLabel" name="lblFPS">
-         <property name="font">
-          <font>
-           <weight>75</weight>
-           <bold>true</bold>
-          </font>
-         </property>
-         <property name="styleSheet">
-          <string notr="true">padding-right: 5px</string>
-         </property>
-         <property name="text">
-          <string>FPS: 60</string>
-         </property>
-         <property name="alignment">
-          <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
-         </property>
->>>>>>> 0183415f39c61c8ba1f0da357ffc677d07af9faf
         </widget>
        </item>
        <item>
