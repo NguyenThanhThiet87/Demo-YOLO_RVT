@@ -27,12 +27,12 @@ class YOLO_RViT(nn.Module):
 
     def forward(self, x, target=None, teach_ratio=0.5, forced_output_length=None):
         x = x.to(DEVICE)
-        t1 = time.perf_counter()
+        t1 = time.perf_counter()    # Bắt đầu đo thời gian backbone
         feats = self.backbone(x)
-        t2 = time.perf_counter()
+        t2 = time.perf_counter()    # Kết thúc đo thời gian backbone
         print(f"Backbone time: {(t2 - t1)*1000:.2f} ms")
         output = self.rvit(feats, target, teach_ratio, forced_output_length)
-        t3 = time.perf_counter()
+        t3 = time.perf_counter()    # Kết thúc đo thời gian RViT
         print(f"RViT time: {(t3 - t2)*1000:.2f} ms")
         return output
 

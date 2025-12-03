@@ -36,7 +36,7 @@ class RViT(nn.Module):
         )
 
     def forward(self, fmap, target=None, teach_ratio=0.5, forced_output_length=10):
-        t1 = time.perf_counter()
+        t1 = time.perf_counter() # Bắt đầu đo thời gian RViT
         b = fmap.size(0)
         x = self.proj(fmap)
         x = x.flatten(2).permute(0, 2, 1)
@@ -74,7 +74,7 @@ class RViT(nn.Module):
         if target is None and forced_output_length is None:
             finished_sequences_tracker = torch.zeros(b, dtype=torch.bool, device=DEVICE)
         
-        t2 = time.perf_counter()
+        t2 = time.perf_counter() # Kết thúc đo thời gian chuẩn bị RViT
         print(f"RViT preparation time: {(t2 - t1)*1000:.2f} ms")
         for t in range(max_gen_len):
             emb = self.embed(current_input_tokens).unsqueeze(1)
@@ -101,6 +101,6 @@ class RViT(nn.Module):
                 current_input_tokens = next_input_candidate
         
         output = torch.stack(outputs_logits, dim=1)
-        t3 = time.perf_counter()
+        t3 = time.perf_counter() # Kết thúc đo thời gian RViT
         print(f"RViT generation time: {(t3 - t2)*1000:.2f} ms")
         return output
