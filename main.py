@@ -4,13 +4,20 @@ import queue
 import time
 from PyQt5.QtWidgets import QApplication, QMainWindow, QFileDialog
 from PyQt5 import uic
-from PyQt5.QtCore import Qt
+from PyQt5.QtCore import Qt, QObject, pyqtSignal
 from PyQt5.QtGui import QPixmap, QImage
 import sys
 from collections import deque
 import torch
 from Model_YOLO_RVT.PredictModel import predict_license_plate, load_model_for_prediction
 from UI import UI
+
+
+class SignalEmitter(QObject):
+    """Signal emitter để cập nhật UI an toàn từ thread khác"""
+    update_frame = pyqtSignal(QPixmap)  # Signal để cập nhật frame
+    update_fps = pyqtSignal(float)       # Signal để cập nhật FPS
+    update_result = pyqtSignal(QPixmap, str, float)  # Signal để cập nhật kết quả
 
 
 class Result:
@@ -23,9 +30,9 @@ class Result:
 YOLO_PATH = 'Model_YOLO_RVT\\yolov11s-pytorch-default-v1\\best.pt'
 BEST_CONFIDENCE_THRESHOLD = 0.8
 MAX_FRAME_HISTORY = 20
-IMG_SIZE_MODEL = (480, 480)
-FRAME_SIZE = (640, 480)
-FPS_CAMERA = 30
+IMG_SIZE_MODEL = (640, 640)
+FRAME_SIZE = (1280, 720)
+FPS_CAMERA = 60
 
 class System:
     def __init__(self, path_model):
@@ -42,6 +49,12 @@ class System:
             print(f"GPU: {torch.cuda.get_device_name(0)}")
 
         self.window = UI()
+
+        # Signal emitter để cập nhật UI an toàn từ thread khác
+        self.signals = SignalEmitter()
+        self.signals.update_frame.connect(self._update_frame_ui)
+        self.signals.update_fps.connect(self._update_fps_ui)
+        self.signals.update_result.connect(self._update_result_ui)
 
         # Queue và Event cho threading 
         self.frame_queue = queue.Queue(maxsize=1)
@@ -121,6 +134,8 @@ class System:
 
         video_fps = cap.get(cv2.CAP_PROP_FPS)
         total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+        cap.set(cv2.CAP_PROP_FRAME_WIDTH, FRAME_SIZE[0])
+        cap.set(cv2.CAP_PROP_FRAME_HEIGHT, FRAME_SIZE[1])
         
         # Giới hạn FPS (giống camera)
         target_fps = min(video_fps, FPS_CAMERA)
@@ -227,14 +242,14 @@ class System:
                 self.history.clear()
             t2 = time.perf_counter() # Kết thúc đo thời gian xử lý kết quả
 
-            # Hiển thị frame lên màn hình
+            # Hiển thị frame lên màn hình - dùng signal để thread-safe
             pixmap = QPixmap.fromImage(q_img).scaled(
                 self.window.lblScreen.width(),
                 self.window.lblScreen.height(),
                 Qt.KeepAspectRatio,
                 Qt.SmoothTransformation,
             )
-            self.window.lblScreen.setPixmap(pixmap)
+            self.signals.update_frame.emit(pixmap)  # Emit signal thay vì gọi trực tiếp
             t3 = time.perf_counter() # Kết thúc đo thời gian hiển thị
 
             # In thời gian chi tiết
@@ -250,14 +265,25 @@ class System:
                 instant_fps = 1000.0 / time_total
                 curr_fps = 0.9 * curr_fps + 0.1 * instant_fps
 
-            self.window.setFPS(curr_fps)
+            self.signals.update_fps.emit(curr_fps)  # Emit signal thay vì gọi trực tiếp
 
         print("[Thread AI] Stopped.")
 
-    def displayResult(self, pixmap, license_plate, conf):
+    # Slot methods - chạy trên main thread
+    def _update_frame_ui(self, pixmap):
+        self.window.lblScreen.setPixmap(pixmap)
+
+    def _update_fps_ui(self, fps):
+        self.window.setFPS(fps)
+
+    def _update_result_ui(self, pixmap, license_plate, conf):
         self.window.setLabelBienSo(f"{license_plate}")
         self.window.setLabelTime(f"{(conf * 100):.2f}%")
         self.window.setImgKq(pixmap)
+
+    def displayResult(self, pixmap, license_plate, conf):
+        # Emit signal thay vì cập nhật UI trực tiếp
+        self.signals.update_result.emit(pixmap, license_plate, conf)
 
     def start(self):
         self.window.setEventButtonCamera(self.handleOpenCamera)
